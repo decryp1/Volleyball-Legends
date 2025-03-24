@@ -1,0 +1,338 @@
+local repo = "https://raw.githubusercontent.com/decryp1/Obsidian/main/"
+local lib = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
+local win = lib:CreateWindow({Title = 'Herkle Hub -- VL', Footer = "version 1A", Center = true, AutoShow = true, Resizable = true, ShowCustomCursor = false})
+
+local tabs = {
+    main = win:AddTab('Main'),
+    game = win:AddTab('Game'),
+    ['UI settings'] = win:AddTab('UI settings')
+}
+
+local run = game:GetService('RunService')
+local lp = game:GetService('Players').LocalPlayer
+local httpservice = game:GetService('HttpService')
+local localization = game:GetService('LocalizationService')
+local marketplace = game:GetService('MarketplaceService')
+local autorotate = false
+local predict = {enabled = false}
+local playermods = {tpwalk = false, tpspeed = 1, gravity = false, gravval = 43}
+local trail = {enabled = false, fade = 1}
+local trailpart = nil
+local att0, att1 = nil, nil
+local curball = nil
+trail.color = Color3.new(1, 0, 0)
+
+
+local Options = lib.Options
+local Toggles = lib.Toggles
+--{UI ELEMENT DECLARATION}
+-- {MAIN TAB}
+local spin = tabs.main:AddLeftGroupbox('Spin')
+spin:AddButton("Style Spin (Normal)", function() local args = {[1] = false}game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_knit@1.7.0"):WaitForChild("knit"):WaitForChild("Services"):WaitForChild("StyleService"):WaitForChild("RF"):WaitForChild("Roll"):InvokeServer(unpack(args))
+lib:Notify("You Used 1 Normal Style Spin!", nil, 12221967)end)
+spin:AddButton("Style Spin (Lucky)", function() local args = {[1] = true}game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_knit@1.7.0"):WaitForChild("knit"):WaitForChild("Services"):WaitForChild("StyleService"):WaitForChild("RF"):WaitForChild("Roll"):InvokeServer(unpack(args))
+lib:Notify("You Used 1 Lucky Style Spin!", nil, 12221967)end)
+spin:AddButton("Ability Spin (Normal)", function() local args = {[1] = false}game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_knit@1.7.0"):WaitForChild("knit"):WaitForChild("Services"):WaitForChild("AbilityService"):WaitForChild("RF"):WaitForChild("Roll"):InvokeServer(unpack(args))
+lib:Notify("You Used 1 Normal Ability Spin!", nil, 12221967)end)
+spin:AddButton("Ability Spin (Lucky)", function() local args = {[1] = true}game:GetService("ReplicatedStorage"):WaitForChild("Packages"):WaitForChild("_Index"):WaitForChild("sleitnick_knit@1.7.0"):WaitForChild("knit"):WaitForChild("Services"):WaitForChild("AbilityService"):WaitForChild("RF"):WaitForChild("Roll"):InvokeServer(unpack(args))
+lib:Notify("You Used 1 Lucky Ability Spin!", nil, 12221967)end)
+local starttime = os.time()
+local clientlocale = localization.RobloxLocaleId or 'Unknown'
+local serverlocale = localization.SystemLocaleId or 'Unknown'
+local infosection = tabs.main:AddRightGroupbox('game and player stuff')
+infosection:AddLabel('Welcome ' .. lp.Name .. ', Enjoy!')
+infosection:AddLabel('Account Age: ' .. lp.AccountAge .. ' days')
+local gameinfolabel = infosection:AddLabel('Game Name: Loading...')
+infosection:AddLabel('Place ID: ' .. tostring(game.PlaceId))
+infosection:AddLabel('Max Players: ' .. tostring(game:GetService('Players').MaxPlayers))
+local timelabel = infosection:AddLabel('Current Time: ' .. os.date('%X', os.time()))
+local runtimelabel = infosection:AddLabel('Runtime: 00:00:00')
+local playerslabel = infosection:AddLabel('Players: Loading...')
+infosection:AddLabel('Client Location: ' .. clientlocale)
+infosection:AddLabel('Server Location: ' .. serverlocale)
+infosection:AddButton('Copy Jobid', function()setclipboard(game.JobId)end)
+infosection:AddButton('Copy HWID', function()setclipboard(game:GetService('RbxAnalyticsService'):GetClientId())end)
+infosection:AddButton('Copy SID', function()setclipboard(game:GetService('RbxAnalyticsService'):GetSessionId())end)
+--{GAME TAB}
+
+-- {BALL VISUALS}
+local ball = tabs.game:AddLeftGroupbox('Ball Visuals')
+ball:AddToggle('predictlanding', {Text = 'Ball Prediction (buns)', Default = false})
+ball:AddToggle('trailtoggle', {Text = 'Ball Trail', Default = false})
+ball:AddSlider('trailfade', {Text = 'Duration', Default = 1, Min = 1, Max = 20, Rounding = 1, Suffix = ''})
+ball:AddLabel('Trail Color'):AddColorPicker('trailcolor', {Default = Color3.new(1, 0, 0), Title = 'Trail Color'})
+-- {PLAYER MODS}
+local mods = tabs.game:AddRightGroupbox('Player Mods')
+mods:AddToggle('tpwalk', {Text = 'Tp Walk', Default = false})
+mods:AddSlider('tpspeed', {Text = 'Speed', Default = 0.5, Min = 0.5, Max = 15, Rounding = 1, Suffix = ''})
+mods:AddToggle('gravity', {Text = 'Gravity', Default = false})
+mods:AddSlider('gravval', {Text = 'Value', Default = 43, Min = 0, Max = 200, Rounding = 1, Suffix = ''})
+mods:AddToggle('autorotate', {Text = 'Always Rotate', Default = false})
+--{END OF UI ELEMENT DECLARATION}
+
+local function formattime(seconds)
+    local minutes = math.floor(seconds / 60)
+    local hours = math.floor(minutes / 60)
+    seconds = seconds % 60
+    minutes = minutes % 60
+    return string.format('%02d:%02d:%02d', hours, minutes, seconds)
+end
+
+local success, gameinfo = pcall(function()
+    return marketplace:GetProductInfo(game.PlaceId)
+end)
+
+if success then
+    gameinfolabel:SetText('Game Name: ' .. gameinfo.Name)
+else
+    gameinfolabel:SetText('Game Name: Unknown')
+end
+
+task.spawn(function()
+    while task.wait(1) do
+        timelabel:SetText('Current Time: ' .. os.date('%X', os.time()))
+        runtimelabel:SetText('Runtime: ' .. formattime(os.time() - starttime))
+        playerslabel:SetText('Players: ' .. tostring(#game:GetService('Players'):GetPlayers()))
+    end
+end)
+
+local function getball()
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and obj.Name:find("CLIENT_BALL_") then
+            local primary = obj.PrimaryPart or obj:FindFirstChild("PrimaryPart")
+            if primary then return obj end
+        end
+    end
+end
+
+local landingprediction = Instance.new("Part")
+landingprediction.Size = Vector3.new(3, 3, 3)
+landingprediction.Anchored = true
+landingprediction.CanCollide = false
+landingprediction.Material = Enum.Material.Neon
+landingprediction.Color = Color3.new(1, 0, 0)
+landingprediction.Transparency = 1
+landingprediction.Shape = Enum.PartType.Cylinder
+landingprediction.Parent = workspace
+landingprediction.Orientation = Vector3.new(0, 0, 90)
+
+local function predictlanding()
+    local ball = getball()
+    if not ball or not ball.PrimaryPart then return end
+
+    local primary = ball.PrimaryPart
+    local pos = primary.Position
+    local velocity = primary.AssemblyLinearVelocity
+    local gravity = workspace.Gravity
+
+    local y0 = pos.Y
+    local vy = velocity.Y
+    local vx = velocity.X
+    local vz = velocity.Z
+    local floorpos = workspace.Map.BallNoCollide.CutsceneCourt.Map.Floor.Position.Y
+
+    local a = -0.5 * gravity
+    local b = vy
+    local c = y0 - floorpos
+
+    local discriminant = b^2 - 4*a*c
+    if discriminant < 0 then return nil end
+
+    local t1 = (-b + math.sqrt(discriminant)) / (2 * a)
+    local t2 = (-b - math.sqrt(discriminant)) / (2 * a)
+    local t = math.max(t1, t2)
+
+    if t < 0 then return nil end
+
+    local xland = pos.X + vx * t
+    local zland = pos.Z + vz * t
+
+    return Vector3.new(xland, floorpos, zland)
+end
+
+local function trackprediction()
+    while predict.enabled do
+        local landingpos = predictlanding()
+        if landingpos then
+            landingprediction.Position = landingpos
+            landingprediction.Transparency = 0.5
+        else
+            landingprediction.Transparency = 1
+        end
+        task.wait()
+    end
+    landingprediction.Transparency = 1
+end
+
+local function maketrail(ball)
+    if trailpart then trailpart:Destroy() end
+    if att0 then att0:Destroy() end
+    if att1 then att1:Destroy() end
+
+    local primary = ball.PrimaryPart
+    if not primary then return end
+
+    att0 = Instance.new("Attachment", primary)
+    att1 = Instance.new("Attachment", primary)
+    att0.Position = Vector3.new(0, 0, -2)
+    att1.Position = Vector3.new(0, 0, 2)
+
+    trailpart = Instance.new("Trail")
+    trailpart.Attachment0 = att0
+    trailpart.Attachment1 = att1
+    trailpart.Lifetime = trail.fade
+    trailpart.Color = ColorSequence.new{
+        ColorSequenceKeypoint.new(0, trail.color),
+        ColorSequenceKeypoint.new(1, trail.color)
+    }
+    trailpart.Transparency = NumberSequence.new(0, 1)
+    trailpart.Parent = primary
+    trailpart.Enabled = true
+end
+
+local function track()
+    while trail.enabled do
+        local ball = getball()
+        if ball ~= curball then
+            curball = ball
+            if curball then maketrail(curball) end
+        end
+        if trailpart and att0 and att1 and curball then
+            local primary = curball.PrimaryPart
+            if primary then
+                local velocity = primary.AssemblyLinearVelocity
+                if velocity.Magnitude > 0.1 then
+                    att0.Position = Vector3.new(-0.5, 0, 0)
+                    att1.Position = Vector3.new(0.5, 0, 0)
+                end
+            end
+        end
+        task.wait()
+    end
+end
+
+local function tpwalk_loop()
+    while playermods.tpwalk do
+        task.wait()
+        local char = lp.Character
+        local hum = char and char:FindFirstChildWhichIsA('Humanoid')
+        if hum and hum.MoveDirection.Magnitude > 0 then
+            char:TranslateBy(hum.MoveDirection.Unit * 0.2 * playermods.tpspeed)
+        end
+    end
+end
+
+local function gravity_loop()
+    while playermods.gravity do
+        workspace.Gravity = playermods.gravval
+        task.wait(1)
+    end
+end
+
+local function autorotatee()
+    autorotate = true
+    while Toggles.autorotate.Value do
+        local char = lp.Character
+        if char then
+            local hum = char:FindFirstChildWhichIsA('Humanoid')
+            if hum then
+                hum.AutoRotate = true
+            end
+        end
+        task.wait(0.1)
+    end
+    autorotate = false
+end
+
+lp.CharacterAdded:Connect(function()
+    if playermods.gravity then workspace.Gravity = playermods.gravval end
+    if Toggles.autorotate.Value then
+        local hum = lp.Character:FindFirstChildWhichIsA('Humanoid')
+        if hum then hum.AutoRotate = true end
+    end
+end)
+
+--{TOGGLES}
+Toggles.predictlanding:OnChanged(function()
+    predict.enabled = Toggles.predictlanding.Value
+    if predict.enabled then
+        task.spawn(trackprediction)
+    end
+end)
+
+Toggles.trailtoggle:OnChanged(function()
+    trail.enabled = Toggles.trailtoggle.Value
+    if trail.enabled then task.spawn(track) else
+        if trailpart then trailpart:Destroy() trailpart = nil end
+        if att0 then att0:Destroy() att0 = nil end
+        if att1 then att1:Destroy() att1 = nil end
+    end
+end)
+
+Options.trailfade:OnChanged(function()
+    trail.fade = Options.trailfade.Value
+    if trailpart then trailpart.Lifetime = trail.fade end
+end)
+
+Options.trailcolor:OnChanged(function()
+    trail.color = Options.trailcolor.Value
+    if trailpart then
+        trailpart.Color = ColorSequence.new{
+            ColorSequenceKeypoint.new(0, trail.color),
+            ColorSequenceKeypoint.new(1, trail.color)
+        }
+    end
+end)
+
+Toggles.tpwalk:OnChanged(function()
+    playermods.tpwalk = Toggles.tpwalk.Value
+    if playermods.tpwalk then task.spawn(tpwalk_loop) end
+end)
+
+Options.tpspeed:OnChanged(function()
+    playermods.tpspeed = Options.tpspeed.Value
+end)
+
+Toggles.gravity:OnChanged(function()
+    playermods.gravity = Toggles.gravity.Value
+    if playermods.gravity then task.spawn(gravity_loop) else workspace.Gravity = 43 end
+end)
+
+Options.gravval:OnChanged(function()
+    playermods.gravval = Options.gravval.Value
+    if playermods.gravity then workspace.Gravity = playermods.gravval end
+end)
+
+Toggles.autorotate:OnChanged(function()
+    if Toggles.autorotate.Value and not autorotate then
+        task.spawn(autorotatee)
+    end
+end)
+-- {end chatt}
+
+lib:OnUnload(function()
+    Toggles.predictlanding = false
+    playermods.tpwalk = false
+    playermods.gravity = false
+    workspace.Gravity = 43
+    Toggles.autorotate = false
+    if trailpart then trailpart:Destroy() end
+    if att0 then att0:Destroy() end
+    if att1 then att1:Destroy() end
+end)
+
+local MenuGroup = tabs['UI settings']:AddLeftGroupbox('Menu')
+MenuGroup:AddButton('Unload', function() lib:Unload() end)
+MenuGroup:AddLabel('Menu bind'):AddKeyPicker('MenuKeybind', { Default = 'End', NoUI = true, Text = 'Menu keybind' })
+lib.ToggleKeybind = Options.MenuKeybind
+ThemeManager:SetLibrary(lib)
+SaveManager:SetLibrary(lib)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ 'MenuKeybind' })
+ThemeManager:SetFolder('herklevolley')
+SaveManager:SetFolder('herklevolley')
+SaveManager:BuildConfigSection(tabs['UI settings'])
+ThemeManager:ApplyToTab(tabs['UI settings'])
+SaveManager:LoadAutoloadConfig()
